@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control v4 - Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="demo-notice" style="background: #fef3c7; padding: 1rem; text-align: center; border-bottom: 2px solid #f59e0b;">
+        <strong>Demo Mode:</strong> This is a simplified demo. Full app at <a href="./index.html">index.html</a>
+    </div>
+    
+    <div id="app" class="app">
+        <aside class="sidebar">
+            <div class="sidebar__header">
+                <h1 class="sidebar__title">Mission Control</h1>
+            </div>
+            <nav class="sidebar__nav">
+                <a href="#kanban" class="sidebar__link active">
+                    <span>📋</span> Kanban
+                </a>
+                <a href="#inbox" class="sidebar__link">
+                    <span>📥</span> Inbox
+                </a>
+            </nav>
+        </aside>
+        
+        <main class="main-content">
+            <header class="main-content__header">
+                <h2 class="main-content__title">Kanban</h2>
+            </header>
+            
+            <div class="kanban">
+                <div class="kanban__column">
+                    <h3 class="kanban__column-title">To Do</h3>
+                    <div class="kanban__tasks">
+                        <div class="task-card">
+                            <h4>Deploy Effort Trap funnel</h4>
+                            <p>Deploy landing + diagnostic to production</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">The Effort Trap</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>Deploy REPROGRAM website</h4>
+                            <p>Deploy to GitHub Pages</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-low">Low</span>
+                                <span class="project">REPROGRAM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="kanban__column">
+                    <h3 class="kanban__column-title">In Progress</h3>
+                    <div class="kanban__tasks">
+                        <div class="task-card">
+                            <h4>Quantum Nova Phase 3 - Integration layer</h4>
+                            <p>Build data connectors, event pipeline, API gateway</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">Quantum Nova</span>
+                                <span class="progress">10%</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>MC v4 testing with real data</h4>
+                            <p>Populate and deploy for G's testing</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">Mission Control</span>
+                                <span class="progress">50%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="kanban__column">
+                    <h3 class="kanban__column-title">Review</h3>
+                    <div class="kanban__tasks">
+                        <div class="task-card">
+                            <h4>Choose hosting for Lux Life Rx</h4>
+                            <p>Backend 90% complete, need hosting decision</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">Lux Life Rx</span>
+                                <span class="progress">80%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="kanban__column">
+                    <h3 class="kanban__column-title">Done</h3>
+                    <div class="kanban__tasks">
+                        <div class="task-card">
+                            <h4>Dr. Nora video scripts - 20 scripts COMPLETE</h4>
+                            <p>Marketing content for Lux Life Rx</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">Lux Life Rx</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>Quantum Nova Phase 2 COMPLETE</h4>
+                            <p>Core forecasting engine - 25 files, 306KB</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">Quantum Nova</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>The Effort Trap landing page COMPLETE</h4>
+                            <p>Hero, problem/solution, CTA, email capture</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">The Effort Trap</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>Sentinel + MC v4 deployed to GitHub</h4>
+                            <p>Both services built and pushed</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-critical">Critical</span>
+                                <span class="project">Mission Control</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>LOGOS Book III review complete</h4>
+                            <p>6,200-word comprehensive review</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-high">High</span>
+                                <span class="project">LOGOS</span>
+                            </div>
+                        </div>
+                        <div class="task-card">
+                            <h4>REPROGRAM website COMPLETE</h4>
+                            <p>Single-page landing with all sections</p>
+                            <div class="task-card__meta">
+                                <span class="priority p-medium">Medium</span>
+                                <span class="project">REPROGRAM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

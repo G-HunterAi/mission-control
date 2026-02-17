@@ -1,0 +1,736 @@
+openapi: 3.0.3
+info:
+  title: Mission Control v4 API
+  version: 1.0.0
+  description: |
+    Backend API for Mission Control v4 — personal execution + AI agent coordination + portfolio intelligence.
+    Deployed on Cloudflare Workers + D1 (SQLite).
+
+servers:
+  - url: https://mc4-api.{account}.workers.dev
+    description: Cloudflare Workers (production)
+  - url: http://localhost:8787
+    description: Local development (wrangler dev)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: "Bearer token. Role embedded: owner or agent."
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: "UUID for write idempotency. Required on all POST/PATCH."
+
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+    AgentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    Task:
+      $ref: './task-schema.json'
+
+    Project:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, completed]
+        monthlyRevenue:
+          type: number
+          nullable: true
+        nextMilestone:
+          type: string
+          nullable: true
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              url:
+                type: string
+                format: uri
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      required: [id, taskId, author, body, createdAt]
+      properties:
+        id:
+          type: string
+        taskId:
+          type: string
+        author:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Output:
+      type: object
+      required: [id, taskId, type, label, createdAt]
+      properties:
+        id:
+          type: string
+        taskId:
+          type: string
+        type:
+          type: string
+          enum: [file, url, image, video]
+        label:
+          type: string
+        url:
+          type: string
+          format: uri
+        path:
+          type: string
+          nullable: true
+          description: "Optional local-only path"
+        mime:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Activity:
+      type: object
+      required: [id, ts, type, actor]
+      properties:
+        id:
+          type: string
+        ts:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum:
+            - task.created
+            - task.updated
+            - task.moved
+            - task.archived
+            - task.restored
+            - comment.created
+            - output.created
+            - sync.conflict
+            - sync.error
+            - sync.heartbeat
+        actor:
+          type: string
+          enum: [Hunter, Opus, Claude Code, Codex, System, AppleDaemon]
+        taskId:
+          type: string
+          nullable: true
+        projectId:
+          type: string
+          nullable: true
+        meta:
+          type: object
+          additionalProperties: true
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [owner, agent]
+        wipLimit:
+          type: integer
+        currentWip:
+          type: integer
+        status:
+          type: string
+          enum: [active, idle, error]
+
+    SyncStatus:
+      type: object
+      properties:
+        lastSyncAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+        pullCount:
+          type: integer
+        pushCount:
+          type: integer
+        conflictCount:
+          type: integer
+
+    # --- SENTINEL Schemas (reserved) ---
+    SentinelHeartbeat:
+      type: object
+      required: [agentId, status, timestamp]
+      properties:
+        agentId:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, failed, recovering]
+        currentTaskId:
+          type: string
+          nullable: true
+        metrics:
+          type: object
+          properties:
+            cpuPercent:
+              type: number
+            memoryMb:
+              type: number
+            tasksCompleted:
+              type: integer
+            errorCount:
+              type: integer
+            avgResponseMs:
+              type: number
+        timestamp:
+          type: string
+          format: date-time
+
+    SentinelContext:
+      type: object
+      properties:
+        agentId:
+          type: string
+        workingContext:
+          type: object
+          description: "Agent's current working state (task queue, environment, etc.)"
+        lastCheckpoint:
+          type: string
+          format: date-time
+        recoveryData:
+          type: object
+          nullable: true
+          description: "State needed to resume from failure"
+
+    SentinelStatus:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            type: object
+            properties:
+              agentId:
+                type: string
+              name:
+                type: string
+              status:
+                type: string
+              lastHeartbeat:
+                type: string
+                format: date-time
+              alerts:
+                type: array
+                items:
+                  type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ===== Tasks =====
+  /api/v1/tasks:
+    get:
+      summary: List tasks
+      tags: [Tasks]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [backlog, in_progress, review, done]
+        - name: projectId
+          in: query
+          schema:
+            type: string
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+        - name: triaged
+          in: query
+          schema:
+            type: boolean
+        - name: blocked
+          in: query
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: "Full-text search query"
+        - name: deadlineBefore
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: deadlineAfter
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+    post:
+      summary: Create task
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/tasks/{id}:
+    get:
+      summary: Get task by ID
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Not found
+    patch:
+      summary: Update task
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+      responses:
+        '200':
+          description: Updated
+        '403':
+          description: Permission denied (agent constraints)
+
+  /api/v1/tasks/{id}/archive:
+    post:
+      summary: Archive task (soft)
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Archived
+
+  /api/v1/tasks/{id}/restore:
+    post:
+      summary: Restore archived task
+      tags: [Tasks]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Restored
+
+  # ===== Projects =====
+  /api/v1/projects:
+    get:
+      summary: List projects
+      tags: [Projects]
+      responses:
+        '200':
+          description: Project list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      summary: Create project
+      tags: [Projects]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Project'
+      responses:
+        '201':
+          description: Created
+
+  /api/v1/projects/{id}:
+    patch:
+      summary: Update project
+      tags: [Projects]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Project'
+      responses:
+        '200':
+          description: Updated
+
+  # ===== Comments =====
+  /api/v1/tasks/{id}/comments:
+    get:
+      summary: List comments for a task
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Comment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+    post:
+      summary: Add comment to task
+      tags: [Comments]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Created
+
+  # ===== Outputs =====
+  /api/v1/tasks/{id}/outputs:
+    get:
+      summary: List outputs for a task
+      tags: [Outputs]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Output list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Output'
+    post:
+      summary: Add output to task
+      tags: [Outputs]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Output'
+      responses:
+        '201':
+          description: Created
+
+  # ===== Activity =====
+  /api/v1/activity:
+    get:
+      summary: Activity feed
+      tags: [Activity]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: taskId
+          in: query
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Activity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Activity'
+
+  # ===== Agents =====
+  /api/v1/agents:
+    get:
+      summary: List agents
+      tags: [Agents]
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+  /api/v1/agents/{id}:
+    patch:
+      summary: Update agent config (owner only)
+      tags: [Agents]
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Agent'
+      responses:
+        '200':
+          description: Updated
+        '403':
+          description: Owner only
+
+  # ===== Sync =====
+  /api/v1/sync/status:
+    get:
+      summary: Get Apple sync status
+      tags: [Sync]
+      responses:
+        '200':
+          description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncStatus'
+
+  /api/v1/sync/heartbeat:
+    post:
+      summary: Apple daemon heartbeat
+      tags: [Sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lastRunAt:
+                  type: string
+                  format: date-time
+                pullCount:
+                  type: integer
+                pushCount:
+                  type: integer
+                errors:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Heartbeat recorded
+
+  # ===== SENTINEL (Reserved) =====
+  /api/v1/sentinel/heartbeat:
+    post:
+      summary: "[SENTINEL] Agent heartbeat"
+      tags: [SENTINEL]
+      description: "Reserved for SENTINEL integration. Agent reports health + status."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SentinelHeartbeat'
+      responses:
+        '501':
+          description: Not yet implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/sentinel/context/{agentId}:
+    get:
+      summary: "[SENTINEL] Get agent context"
+      tags: [SENTINEL]
+      description: "Reserved. Returns agent's full working context for sync."
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '501':
+          description: Not yet implemented
+    post:
+      summary: "[SENTINEL] Update agent context"
+      tags: [SENTINEL]
+      description: "Reserved. Agent pushes updated working context."
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SentinelContext'
+      responses:
+        '501':
+          description: Not yet implemented
+
+  /api/v1/sentinel/recover/{agentId}:
+    post:
+      summary: "[SENTINEL] Trigger agent recovery"
+      tags: [SENTINEL]
+      description: "Reserved. Triggers failure recovery for stuck/failed agent."
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '501':
+          description: Not yet implemented
+
+  /api/v1/sentinel/status:
+    get:
+      summary: "[SENTINEL] System overview"
+      tags: [SENTINEL]
+      description: "Reserved. Returns all agents, health, and alerts."
+      responses:
+        '501':
+          description: Not yet implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentinelStatus'

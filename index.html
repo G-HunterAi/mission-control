@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mission Control v4</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Third-party (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" defer></script>
+</head>
+<body>
+
+  <!-- ===== App Shell ===== -->
+  <div id="app" class="app">
+
+    <!-- Sidebar (desktop) -->
+    <nav id="sidebar" class="sidebar" aria-label="Main navigation">
+      <div class="sidebar__brand">
+        <span class="sidebar__logo">MC</span>
+        <span class="sidebar__title">Mission Control</span>
+      </div>
+
+      <ul class="sidebar__nav">
+        <li>
+          <a href="#/kanban" class="sidebar__link sidebar__link--active" data-view="kanban">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="1" y="1" width="5" height="18" rx="1"/><rect x="7.5" y="1" width="5" height="12" rx="1"/><rect x="14" y="1" width="5" height="15" rx="1"/>
+            </svg>
+            <span>Kanban</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/inbox" class="sidebar__link" data-view="inbox">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="2" width="16" height="16" rx="2"/><polyline points="2 12 7 12 8 14 12 14 13 12 18 12"/>
+            </svg>
+            <span>Inbox</span>
+            <span id="inbox-badge" class="sidebar__badge" hidden>0</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/calendar" class="sidebar__link" data-view="calendar">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="3" width="16" height="15" rx="2"/><line x1="2" y1="8" x2="18" y2="8"/><line x1="6" y1="1" x2="6" y2="5"/><line x1="14" y1="1" x2="14" y2="5"/>
+            </svg>
+            <span>Calendar</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/agents" class="sidebar__link" data-view="agents">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="10" cy="7" r="4"/><path d="M2 18c0-4 3.5-7 8-7s8 3 8 7"/>
+            </svg>
+            <span>Agents</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/timeline" class="sidebar__link" data-view="timeline">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="10" y1="2" x2="10" y2="18"/><circle cx="10" cy="5" r="2"/><circle cx="10" cy="11" r="2"/><circle cx="10" cy="17" r="1"/>
+            </svg>
+            <span>Timeline</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/outputs" class="sidebar__link" data-view="outputs">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 2h8l4 4v12a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/><polyline points="12 2 12 6 16 6"/>
+            </svg>
+            <span>Outputs</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/conflicts" class="sidebar__link" data-view="conflicts">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M10 2L2 18h16L10 2z"/><line x1="10" y1="8" x2="10" y2="12"/><circle cx="10" cy="15" r="1"/>
+            </svg>
+            <span>Conflicts</span>
+          </a>
+        </li>
+        <li>
+          <a href="#/settings" class="sidebar__link" data-view="settings">
+            <svg class="sidebar__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="10" cy="10" r="3"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3m-2.5-6.5l-2 2m-9 9l-2 2m13 0l-2-2m-9-9l-2-2"/>
+            </svg>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <!-- Keyboard shortcut hint -->
+      <div class="sidebar__footer">
+        <kbd>Ctrl</kbd>+<kbd>K</kbd> Command Palette
+      </div>
+    </nav>
+
+    <!-- Main content area -->
+    <main id="main-content" class="main">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <button id="menu-toggle" class="topbar__menu-btn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <h1 id="view-title" class="topbar__title">Kanban</h1>
+        <div class="topbar__actions">
+          <div class="topbar__search">
+            <input type="search" id="global-search" class="topbar__search-input" placeholder="Search tasks..." aria-label="Search tasks">
+          </div>
+          <div id="notification-indicators" class="topbar__notifications">
+            <span id="notif-review" class="notif-dot notif-dot--review" title="Needs review" hidden></span>
+            <span id="notif-overdue" class="notif-dot notif-dot--overdue" title="Overdue" hidden></span>
+            <span id="notif-blocked" class="notif-dot notif-dot--blocked" title="Blocked" hidden></span>
+            <span id="notif-sync" class="notif-dot notif-dot--sync" title="Sync issues" hidden></span>
+          </div>
+        </div>
+      </header>
+
+      <!-- View containers -->
+      <div id="view-kanban" class="view view--active" data-view="kanban"></div>
+      <div id="view-inbox" class="view" data-view="inbox"></div>
+      <div id="view-calendar" class="view" data-view="calendar"></div>
+      <div id="view-agents" class="view" data-view="agents"></div>
+      <div id="view-timeline" class="view" data-view="timeline"></div>
+      <div id="view-outputs" class="view" data-view="outputs"></div>
+      <div id="view-conflicts" class="view" data-view="conflicts"></div>
+      <div id="view-settings" class="view" data-view="settings"></div>
+
+    </main>
+  </div>
+
+  <!-- Modal container -->
+  <div id="modal-root" class="modal-root" hidden></div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Command Palette -->
+  <div id="command-palette" class="command-palette" hidden>
+    <div class="command-palette__overlay"></div>
+    <div class="command-palette__dialog" role="dialog" aria-label="Command palette">
+      <input type="text" id="command-input" class="command-palette__input" placeholder="Type a command or search..." autocomplete="off">
+      <ul id="command-results" class="command-palette__results" role="listbox"></ul>
+    </div>
+  </div>
+
+  <!-- Bulk Actions Bar -->
+  <div id="bulk-actions-bar" class="bulk-actions-bar" hidden>
+    <span id="bulk-count" class="bulk-actions-bar__count">0 selected</span>
+    <button class="bulk-actions-bar__btn" data-action="assign">Assign</button>
+    <button class="bulk-actions-bar__btn" data-action="priority">Priority</button>
+    <button class="bulk-actions-bar__btn" data-action="move">Move</button>
+    <button class="bulk-actions-bar__btn" data-action="archive">Archive</button>
+    <button class="bulk-actions-bar__btn bulk-actions-bar__btn--cancel" data-action="cancel">Cancel</button>
+  </div>
+
+  <!-- Mobile bottom tab bar -->
+  <nav id="mobile-tabs" class="mobile-tabs" aria-label="Mobile navigation">
+    <a href="#/kanban" class="mobile-tabs__tab mobile-tabs__tab--active" data-view="kanban" aria-label="Kanban">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="5" height="18" rx="1"/><rect x="7.5" y="1" width="5" height="12" rx="1"/><rect x="14" y="1" width="5" height="15" rx="1"/></svg>
+    </a>
+    <a href="#/inbox" class="mobile-tabs__tab" data-view="inbox" aria-label="Inbox">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="16" height="16" rx="2"/><polyline points="2 12 7 12 8 14 12 14 13 12 18 12"/></svg>
+    </a>
+    <a href="#/calendar" class="mobile-tabs__tab" data-view="calendar" aria-label="Calendar">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="16" height="15" rx="2"/><line x1="2" y1="8" x2="18" y2="8"/></svg>
+    </a>
+    <a href="#/agents" class="mobile-tabs__tab" data-view="agents" aria-label="Agents">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="7" r="4"/><path d="M2 18c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+    </a>
+    <a href="#/settings" class="mobile-tabs__tab" data-view="settings" aria-label="Settings">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 1v3m0 12v3M1 10h3m12 0h3"/></svg>
+    </a>
+  </nav>
+
+  <!-- App entry point -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

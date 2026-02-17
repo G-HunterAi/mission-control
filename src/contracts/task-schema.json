@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://missioncontrol.dev/schemas/task.json",
+  "title": "Mission Control Task",
+  "description": "Core task object for Mission Control v4",
+  "type": "object",
+  "required": ["id", "key", "title", "status", "triaged", "priority", "createdAt", "updatedAt"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "ULID/UUID primary key (offline-safe)",
+      "pattern": "^[0-9A-Za-z-]{20,36}$"
+    },
+    "key": {
+      "type": "string",
+      "description": "Human-readable display key (MC-001, MC-002, etc.)",
+      "pattern": "^MC-\\d{1,6}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "description": {
+      "type": ["string", "null"],
+      "maxLength": 10000
+    },
+    "status": {
+      "type": "string",
+      "enum": ["backlog", "in_progress", "review", "done"]
+    },
+    "triaged": {
+      "type": "boolean",
+      "default": false,
+      "description": "false = appears in Inbox for triage"
+    },
+    "archivedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "deletedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Soft delete timestamp"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P1", "P2", "P3"]
+    },
+    "priorityScore": {
+      "type": "number",
+      "default": 0,
+      "description": "Server-computed priority score for sorting"
+    },
+    "projectId": {
+      "type": ["string", "null"],
+      "description": "Reference to Project.id"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "assignedTo": {
+      "type": ["string", "null"],
+      "enum": ["Hunter", "Opus", "Claude Code", "Codex", null],
+      "description": "Agent or owner assignment"
+    },
+    "deadlineAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Hard deadline (maps to Apple Reminders)"
+    },
+    "scheduledStartAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When work is scheduled to begin (maps to Calendar)"
+    },
+    "scheduledEndAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When scheduled work ends"
+    },
+    "durationMins": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Planned duration in minutes"
+    },
+    "estimateMins": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Estimated effort in minutes"
+    },
+    "actualMins": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Actual time spent in minutes"
+    },
+    "progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "description": "Manual progress 0..1"
+    },
+    "revenuePotential": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Estimated revenue potential in dollars"
+    },
+    "blockedBy": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Array of Task.id values this task depends on"
+    },
+    "definitionOfDone": {
+      "type": ["string", "null"],
+      "maxLength": 5000,
+      "description": "What 'done' looks like for this task"
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "done"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "done": { "type": "boolean", "default": false }
+        }
+      },
+      "default": []
+    },
+    "handoff": {
+      "type": ["object", "null"],
+      "description": "Agent-to-agent handoff capsule",
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "summary": { "type": "string" },
+        "nextSteps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "enum": ["manual", "apple_reminders", "apple_calendar", "apple_notes"],
+      "default": "manual"
+    },
+    "apple": {
+      "type": "object",
+      "properties": {
+        "reminderId": { "type": ["string", "null"] },
+        "calendarEventId": { "type": ["string", "null"] },
+        "noteId": { "type": ["string", "null"] },
+        "mcidEmbedded": { "type": "boolean", "default": false },
+        "lastPulledAt": { "type": ["string", "null"], "format": "date-time" },
+        "lastPushedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "default": {}
+    },
+    "seriesId": {
+      "type": ["string", "null"],
+      "description": "Links recurring task instances"
+    },
+    "recurrence": {
+      "type": ["object", "null"],
+      "properties": {
+        "source": { "type": "string", "enum": ["apple", "mc"] },
+        "rule": { "type": "string", "description": "iCalendar RRULE format" }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  }
+}

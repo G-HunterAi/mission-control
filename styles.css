@@ -1233,3 +1233,37 @@ ul, ol {
   white-space: nowrap;
   width: 1px;
 }
+
+/* Scroll fix for Kanban columns */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  padding-bottom: var(--space-lg);
+}
+
+.kanban__column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.kanban__card-list,
+.kanban__tasks {
+  flex: 1;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  min-height: 200px;
+  max-height: calc(100vh - 250px);
+}

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control v4</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+            color: #666;
+        }
+        .error {
+            text-align: center;
+            padding: 3rem;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="app">
+        <aside class="sidebar">
+            <div class="sidebar__header">
+                <h1 class="sidebar__title">Mission Control</h1>
+            </div>
+            <nav class="sidebar__nav" id="sidebar-nav">
+                <a href="#kanban" class="sidebar__link active" data-view="kanban">
+                    <span>📋</span> Kanban
+                </a>
+                <a href="#inbox" class="sidebar__link" data-view="inbox">
+                    <span>📥</span> Inbox
+                </a>
+                <a href="#calendar" class="sidebar__link" data-view="calendar">
+                    <span>📅</span> Calendar
+                </a>
+                <a href="#agents" class="sidebar__link" data-view="agents">
+                    <span>👥</span> Agents
+                </a>
+                <a href="#timeline" class="sidebar__link" data-view="timeline">
+                    <span>📊</span> Timeline
+                </a>
+                <a href="#outputs" class="sidebar__link" data-view="outputs">
+                    <span>📦</span> Outputs
+                </a>
+                <a href="#settings" class="sidebar__link" data-view="settings">
+                    <span>⚙️</span> Settings
+                </a>
+            </nav>
+        </aside>
+        
+        <main class="main-content">
+            <header class="main-content__header">
+                <h2 class="main-content__title" id="view-title">Loading...</h2>
+            </header>
+            
+            <div id="view-container" class="loading">
+                Loading Mission Control...
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            projects: [],
+            tasks: [],
+            currentView: 'kanban'
+        };
+
+        // Load data
+        async function loadData() {
+            try {
+                const response = await fetch('./data/real-projects.json');
+                if (!response.ok) throw new Error('Failed to load data');
+                const data = await response.json();
+                state.projects = data.projects || [];
+                state.tasks = data.tasks || [];
+                console.log('Loaded:', state.projects.length, 'projects,', state.tasks.length, 'tasks');
+                renderCurrentView();
+            } catch (error) {
+                document.getElementById('view-container').innerHTML = `
+                    <div class="error">
+                        <h3>Error Loading Data</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Get tasks by status
+        function getTasksByStatus(status) {
+            return state.tasks.filter(t => t.status === status);
+        }
+
+        // Render task card
+        function renderTaskCard(task) {
+            const project = state.projects.find(p => p.id === task.project);
+            const projectName = project ? project.name : 'Unknown';
+            const projectColor = project ? project.color : '#999';
+            
+            const priorityClass = `p-${task.priority}`;
+            const progress = task.progress || 0;
+            
+            return `
+                <div class="task-card">
+                    <h4>${task.title}</h4>
+                    <p>${task.description || ''}</p>
+                    <div class="task-card__meta">
+                        <span class="priority ${priorityClass}">${task.priority}</span>
+                        <span class="project" style="background: ${projectColor}20; color: ${projectColor}; border-color: ${projectColor}">
+                            ${projectName}
+                        </span>
+                        ${progress > 0 ? `<span class="progress">${progress}%</span>` : ''}
+                    </div>
+                    ${task.tags && task.tags.length > 0 ? `
+                        <div class="task-card__tags">
+                            ${task.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Render Kanban view
+        function renderKanban() {
+            const todoTasks = getTasksByStatus('todo');
+            const inProgressTasks = getTasksByStatus('in-progress');
+            const reviewTasks = getTasksByStatus('review');
+            const doneTasks = getTasksByStatus('done');
+            const blockedTasks = getTasksByStatus('blocked');
+
+            return `
+                <div class="kanban">
+                    <div class="kanban__column">
+                        <h3 class="kanban__column-title">To Do <span class="count">${todoTasks.length}</span></h3>
+                        <div class="kanban__tasks">
+                            ${todoTasks.map(t => renderTaskCard(t)).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="kanban__column">
+                        <h3 class="kanban__column-title">In Progress <span class="count">${inProgressTasks.length}</span></h3>
+                        <div class="kanban__tasks">
+                            ${inProgressTasks.map(t => renderTaskCard(t)).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="kanban__column">
+                        <h3 class="kanban__column-title">Review <span class="count">${reviewTasks.length}</span></h3>
+                        <div class="kanban__tasks">
+                            ${reviewTasks.map(t => renderTaskCard(t)).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="kanban__column">
+                        <h3 class="kanban__column-title">Done <span class="count">${doneTasks.length}</span></h3>
+                        <div class="kanban__tasks">
+                            ${doneTasks.map(t => renderTaskCard(t)).join('')}
+                        </div>
+                    </div>
+                    
+                    ${blockedTasks.length > 0 ? `
+                        <div class="kanban__column kanban__column--blocked">
+                            <h3 class="kanban__column-title">Blocked <span class="count">${blockedTasks.length}</span></h3>
+                            <div class="kanban__tasks">
+                                ${blockedTasks.map(t => renderTaskCard(t)).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Render Inbox view
+        function renderInbox() {
+            const inboxTasks = state.tasks.filter(t => !t.triaged || t.status === 'todo');
+            return `
+                <div class="inbox">
+                    <div class="inbox__header">
+                        <p>${inboxTasks.length} items need triage</p>
+                    </div>
+                    <div class="inbox__tasks">
+                        ${inboxTasks.map(t => renderTaskCard(t)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Projects view
+        function renderProjects() {
+            return `
+                <div class="projects-grid">
+                    ${state.projects.map(p => `
+                        <div class="project-card">
+                            <div class="project-card__header" style="background: ${p.color}">
+                                <h3>${p.name}</h3>
+                            </div>
+                            <p>${p.description}</p>
+                            <div class="project-card__meta">
+                                <span class="status">${p.status}</span>
+                                <span class="priority">${p.priority}</span>
+                            </div>
+                            <div class="project-card__stats">
+                                <span>${state.tasks.filter(t => t.project === p.id).length} tasks</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Render current view
+        function renderCurrentView() {
+            const viewContainer = document.getElementById('view-container');
+            const viewTitle = document.getElementById('view-title');
+            
+            viewTitle.textContent = state.currentView.charAt(0).toUpperCase() + state.currentView.slice(1);
+            
+            let html = '';
+            switch(state.currentView) {
+                case 'kanban':
+                    html = renderKanban();
+                    break;
+                case 'inbox':
+                    html = renderInbox();
+                    break;
+                case 'calendar':
+                    html = '<div class="placeholder"><h3>📅 Calendar View</h3><p>Coming soon</p></div>';
+                    break;
+                case 'agents':
+                    html = '<div class="placeholder"><h3>👥 Agents View</h3><p>Coming soon</p></div>';
+                    break;
+                case 'timeline':
+                    html = '<div class="placeholder"><h3>📊 Timeline View</h3><p>Coming soon</p></div>';
+                    break;
+                case 'outputs':
+                    html = '<div class="placeholder"><h3>📦 Outputs View</h3><p>Coming soon</p></div>';
+                    break;
+                case 'settings':
+                    html = '<div class="placeholder"><h3>⚙️ Settings View</h3><p>Coming soon</p></div>';
+                    break;
+                default:
+                    html = '<div class="error">Unknown view</div>';
+            }
+            
+            viewContainer.innerHTML = html;
+        }
+
+        // Handle navigation
+        function handleNavigation() {
+            const hash = window.location.hash.slice(1) || 'kanban';
+            state.currentView = hash;
+            
+            // Update active nav link
+            document.querySelectorAll('.sidebar__link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.view === hash) {
+                    link.classList.add('active');
+                }
+            });
+            
+            renderCurrentView();
+        }
+
+        // Initialize
+        window.addEventListener('hashchange', handleNavigation);
+        window.addEventListener('load', () => {
+            handleNavigation();
+            loadData();
+        });
+    </script>
+</body>
+</html>
